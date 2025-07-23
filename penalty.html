@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Penalty Predictor</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Montserrat", sans-serif;
+        background-color: #121212;
+        color: white;
+        text-align: center;
+        margin: 0;
+        padding: 20px;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      body.modal-open {
+        overflow: hidden;
+      }
+      .game-container {
+        max-width: 600px;
+        width: 100%;
+        margin: 0 auto;
+        background-color: #1e1e1e;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        transform: translateY(0);
+        transition: transform 0.3s ease;
+        position: relative;
+      }
+      .game-container:hover {
+        transform: translateY(-5px);
+      }
+      h1 {
+        color: #ffcc00;
+        margin-bottom: 10px;
+        font-weight: 600;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+      .penalty-display {
+        height: 350px;
+        margin: 25px 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+      }
+      .goal-container {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+      }
+      .goal-svg {
+        width: 350px;
+        height: 230px;
+        position: absolute;
+        top: 0;
+      }
+      .goal-frame {
+        fill: none;
+        stroke: white;
+        stroke-width: 8;
+        stroke-linecap: round;
+      }
+      .goal-zone {
+        fill: rgba(255, 255, 255, 0.1);
+        stroke: rgba(255, 255, 255, 0.3);
+        stroke-width: 1;
+        transition: all 0.3s ease;
+        border-radius: 50%;
+      }
+      .goal-zone.winner {
+        fill: rgba(0, 204, 102, 0.7);
+        stroke: #00cc66;
+        stroke-width: 2;
+        filter: drop-shadow(0 0 8px rgba(0, 204, 102, 0.7));
+      }
+      .soccer-ball {
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        bottom: 50px;
+        left: 50%;
+        transform: translateX(-50%);
+        transition: transform 1s ease-in-out;
+        z-index: 10;
+      }
+      .result {
+        font-size: 24px;
+        font-weight: 600;
+        color: #ffcc00;
+        margin-bottom: 20px;
+        min-height: 36px;
+      }
+      .bet-amount {
+        font-size: 24px;
+        font-weight: 600;
+        color: #ffcc00;
+        margin: 15px 0;
+        text-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+      }
+      .history-container {
+        max-height: 90px;
+        overflow-y: auto;
+        margin-bottom: 25px;
+        padding: 10px;
+        background-color: #2a2a2a;
+        border-radius: 10px;
+      }
+      .history {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .history-item {
+        padding: 10px;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        background-color: rgba(255, 204, 0, 0.1);
+        border-left: 4px solid #ffcc00;
+      }
+      .history-result {
+        font-weight: 600;
+      }
+      .success {
+        color: #00cc66;
+      }
+      .fail {
+        color: #ff4444;
+      }
+      .controls {
+        margin-top: 30px;
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+      }
+      button {
+        background-color: #ffcc00;
+        color: #121212;
+        border: none;
+        padding: 14px 30px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 16px;
+        letter-spacing: 0.5px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+        width: 200px;
+      }
+      button:hover {
+        background-color: #ffdd33;
+        transform: translateY(-3px);
+        box-shadow: 0 7px 14px rgba(0, 0, 0, 0.2);
+      }
+      button:active {
+        transform: translateY(1px);
+      }
+      button:disabled {
+        background-color: #444;
+        color: #777;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+      button:disabled:hover::after {
+        opacity: 0;
+      }
+      button::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          45deg,
+          transparent 25%,
+          rgba(255, 255, 255, 0.1) 50%,
+          transparent 75%
+        );
+        background-size: 400% 400%;
+        opacity: 0;
+        transition: all 0.5s ease;
+      }
+      button:hover::after {
+        opacity: 1;
+        animation: shine 1.5s infinite;
+      }
+      input {
+        padding: 10px 20px;
+        border-radius: 8px;
+        background-color: #333;
+        color: white;
+        border: none;
+        font-size: 16px;
+        cursor: text;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        width: 200px;
+        text-align: center;
+      }
+      input:invalid {
+        border: 2px solid #ff4444;
+      }
+      input:valid {
+        border: 2px solid #00cc66;
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #ddd;
+      }
+      .hidden {
+        display: none;
+      }
+      .id-form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+      .error-message {
+        color: #ff4444;
+        margin-top: 5px;
+        font-size: 14px;
+        height: 20px;
+      }
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.8);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+      }
+      .loading-overlay.active {
+        opacity: 1;
+        visibility: visible;
+      }
+      .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid rgba(255, 204, 0, 0.3);
+        border-radius: 50%;
+        border-top-color: #ffcc00;
+        animation: spin 1s ease-in-out infinite;
+        margin-bottom: 20px;
+      }
+      .loading-text {
+        color: #ffcc00;
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .how-to-use-btn {
+        background-color: transparent;
+        border: 2px solid #ffcc00;
+        color: #ffcc00;
+        margin: 0 auto 25px;
+        width: 90%;
+        max-width: 400px;
+        white-space: nowrap;
+      }
+      .how-to-use-btn:hover {
+        background-color: rgba(255, 204, 0, 0.1);
+      }
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+      }
+      .modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+      }
+      .modal-content {
+        background-color: #1e1e1e;
+        border-radius: 15px;
+        padding: 30px;
+        max-width: 500px;
+        width: 90%;
+        position: relative;
+        transform: translateY(20px);
+        transition: transform 0.3s ease;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      }
+      .modal-overlay.active .modal-content {
+        transform: translateY(0);
+      }
+      .close-modal {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        font-size: 24px;
+        color: #aaa;
+        cursor: pointer;
+        transition: color 0.3s ease;
+      }
+      .close-modal:hover {
+        color: #ff4444;
+      }
+      .modal-title {
+        color: #ffcc00;
+        margin-bottom: 20px;
+        font-size: 22px;
+      }
+      .modal-text {
+        text-align: left;
+        line-height: 1.6;
+        margin-bottom: 20px;
+      }
+      .modal-text ol {
+        padding-left: 20px;
+      }
+      .modal-text li {
+        margin-bottom: 15px;
+      }
+      .modal-text strong {
+        color: #ffcc00;
+      }
+      @keyframes shine {
+        0% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1e1e1e;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #ffcc00;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #ffdd33;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loading-overlay">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Verifying your ID...</div>
+    </div>
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal-content">
+        <span class="close-modal" id="close-modal">&times;</span>
+        <h3 class="modal-title">HOW TO USE THE BOT</h3>
+        <div class="modal-text">
+          <ol>
+            <li>
+              <strong>First</strong> you have to find out how much you need to
+              bet by clicking on the button - "Get bet amount"
+            </li>
+            <li>
+              You <strong>MUST</strong> first make a bet for the amount shown
+              and only then click on the "Get Signal" button
+            </li>
+          </ol>
+          <p>This is the only way you will win!</p>
+          <p>
+            If you take a signal and do not place a bet to check the bot, you
+            will get an incorrect signal because the bot does not see your bet
+            on the site 1xBet and can not analyze the winning signal.
+          </p>
+          <p>
+            If you lose, it means you are doing something wrong. Or if you are
+            sure that you are doing everything right, change your browser or
+            play with VPN.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="game-container">
+      <h1>Penalty Predictor</h1>
+      <button class="how-to-use-btn" id="how-to-use-btn">HOW TO USE BOT</button>
+      <div class="id-form" id="id-form">
+        <div class="setting-group">
+          <label for="user-id">Enter YOUR 1XBET account ID</label>
+          <input
+            type="text"
+            id="user-id"
+            pattern="\d{8,}"
+            inputmode="numeric"
+            placeholder="Your 1xBet account ID"
+            required
+            title="Please enter at least 8 digits"
+          />
+          <div class="error-message" id="error-message"></div>
+        </div>
+        <button id="verify-btn">Verify ID</button>
+      </div>
+      <div id="game-content" class="hidden">
+        <div class="penalty-display">
+          <div class="goal-container">
+            <svg class="goal-svg" viewBox="0 0 300 200" id="goal-svg">
+              <path d="M20 180 L20 20 L280 20 L280 180" class="goal-frame" />
+              <g>
+                <circle cx="55" cy="50" r="22" class="goal-zone" id="zone-1" />
+                <circle cx="115" cy="50" r="22" class="goal-zone" id="zone-2" />
+                <circle cx="185" cy="50" r="22" class="goal-zone" id="zone-3" />
+                <circle cx="245" cy="50" r="22" class="goal-zone" id="zone-4" />
+                <circle cx="55" cy="100" r="22" class="goal-zone" id="zone-5" />
+                <circle
+                  cx="115"
+                  cy="100"
+                  r="22"
+                  class="goal-zone"
+                  id="zone-6"
+                />
+                <circle
+                  cx="185"
+                  cy="100"
+                  r="22"
+                  class="goal-zone"
+                  id="zone-7"
+                />
+                <circle
+                  cx="245"
+                  cy="100"
+                  r="22"
+                  class="goal-zone"
+                  id="zone-8"
+                />
+                <circle cx="55" cy="150" r="22" class="goal-zone" id="zone-9" />
+                <circle
+                  cx="115"
+                  cy="150"
+                  r="22"
+                  class="goal-zone"
+                  id="zone-10"
+                />
+                <circle
+                  cx="185"
+                  cy="150"
+                  r="22"
+                  class="goal-zone"
+                  id="zone-11"
+                />
+                <circle
+                  cx="245"
+                  cy="150"
+                  r="22"
+                  class="goal-zone"
+                  id="zone-12"
+                />
+              </g>
+            </svg>
+            <img
+              src="https://pics.clipartpng.com/Soccer_Ball_PNG_Clip_Art-1361.png"
+              id="soccer-ball"
+              class="soccer-ball"
+              alt="Soccer Ball"
+            />
+          </div>
+        </div>
+        <div class="result" id="result">GET YOUR SIGNAL</div>
+        <div class="bet-amount hidden" id="bet-amount-container">
+          Your bet amount: <span id="bet-amount">0</span> NGN
+        </div>
+        <div class="history-container">
+          <div class="history" id="history"></div>
+        </div>
+        <div class="controls">
+          <button id="get-bet-btn" onclick="getBetAmount()">
+            Get bet amount
+          </button>
+          <button id="predict-btn" onclick="getPrediction()" disabled>
+            Get Signal
+          </button>
+        </div>
+      </div>
+    </div>
+    <script>
+      const idForm = document.getElementById("id-form");
+      const gameContent = document.getElementById("game-content");
+      const userIdInput = document.getElementById("user-id");
+      const verifyBtn = document.getElementById("verify-btn");
+      const errorMessage = document.getElementById("error-message");
+      const resultElement = document.getElementById("result");
+      const betAmountContainer = document.getElementById(
+        "bet-amount-container"
+      );
+      const betAmountElement = document.getElementById("bet-amount");
+      const historyElement = document.getElementById("history");
+      const predictButton = document.getElementById("predict-btn");
+      const getBetButton = document.getElementById("get-bet-btn");
+      const loadingOverlay = document.getElementById("loading-overlay");
+      const howToUseBtn = document.getElementById("how-to-use-btn");
+      const modalOverlay = document.getElementById("modal-overlay");
+      const closeModal = document.getElementById("close-modal");
+      const goalSvg = document.getElementById("goal-svg");
+      const soccerBall = document.getElementById("soccer-ball");
+      const gameState = {
+        userId: null,
+        betAmount: 0,
+        history: [],
+        isRunning: false,
+        betGenerated: false,
+        fixedPrediction: null,
+      };
+      verifyBtn.addEventListener("click", () => {
+        if (userIdInput.validity.valid) {
+          loadingOverlay.classList.add("active");
+          setTimeout(() => {
+            gameState.userId = userIdInput.value;
+            loadingOverlay.classList.remove("active");
+            idForm.remove();
+            gameContent.classList.remove("hidden");
+            errorMessage.textContent = "";
+          }, 4000);
+        } else {
+          errorMessage.textContent = "ID must be at least 8 digits";
+        }
+      });
+      howToUseBtn.addEventListener("click", () => {
+        document.body.classList.add("modal-open");
+        modalOverlay.classList.add("active");
+      });
+      closeModal.addEventListener("click", () => {
+        document.body.classList.remove("modal-open");
+        modalOverlay.classList.remove("active");
+      });
+      modalOverlay.addEventListener("click", (e) => {
+        if (e.target === modalOverlay) {
+          document.body.classList.remove("modal-open");
+          modalOverlay.classList.remove("active");
+        }
+      });
+      userIdInput.addEventListener("input", function () {
+        this.value = this.value.replace(/\D/g, "");
+        errorMessage.textContent = "";
+      });
+      function resetRound() {
+        const previousWinner = document.querySelector(".goal-zone.winner");
+        if (previousWinner) {
+          previousWinner.classList.remove("winner");
+        }
+        soccerBall.style.transform = "translateX(-50%) translateY(0) scale(1)";
+        resultElement.textContent = "GET YOUR SIGNAL";
+      }
+      function getBetAmount() {
+        if (gameState.isRunning) return;
+        resetRound();
+        getBetButton.disabled = true;
+        getBetButton.textContent = "Generating...";
+        setTimeout(() => {
+          const min = 1500;
+          const max = 3000;
+          gameState.betAmount =
+            Math.floor((Math.random() * (max - min + 100) + min) / 10) * 10;
+          betAmountElement.textContent = gameState.betAmount;
+          betAmountContainer.classList.remove("hidden");
+          predictButton.disabled = false;
+          getBetButton.textContent = "Get bet amount";
+          getBetButton.disabled = false;
+          gameState.betGenerated = true;
+        }, 1000);
+      }
+      function getPrediction() {
+        if (gameState.isRunning || !gameState.betGenerated) return;
+        gameState.isRunning = true;
+        predictButton.disabled = true;
+        getBetButton.disabled = true;
+        predictButton.textContent = "AI Analysing...";
+        resultElement.textContent = "ANALYZING...";
+        // Если задано фиксированное значение, используем его. Иначе — случайное.
+        const winningZone =
+          gameState.fixedPrediction || Math.floor(Math.random() * 12) + 1;
+        setTimeout(() => {
+          const zoneElement = document.getElementById(`zone-${winningZone}`);
+          const ballRect = soccerBall.getBoundingClientRect();
+          const zoneRect = zoneElement.getBoundingClientRect();
+          const targetX =
+            zoneRect.left +
+            zoneRect.width / 2 -
+            (ballRect.left + ballRect.width / 2);
+          const targetY =
+            zoneRect.top +
+            zoneRect.height / 2 -
+            (ballRect.top + ballRect.height / 2);
+          soccerBall.style.transform = `translate(${targetX}px, ${targetY}px) scale(0.6)`;
+          setTimeout(() => {
+            zoneElement.classList.add("winner");
+            resultElement.textContent = `KICK TO THIS ZONE`;
+            addToHistory(winningZone);
+          }, 800);
+          setTimeout(() => {
+            predictButton.disabled = true;
+            predictButton.textContent = "Get Signal";
+            getBetButton.disabled = false;
+            betAmountContainer.classList.add("hidden");
+            gameState.betGenerated = false;
+            gameState.isRunning = false;
+          }, 2000);
+        }, 1500);
+      }
+      function addToHistory(zone) {
+        const historyItem = document.createElement("div");
+        historyItem.className = "history-item";
+        historyItem.innerHTML = `
+          <span>Signal: Zone ${zone}</span>
+          <span class="history-result success">ACTIVE</span>
+        `;
+        historyElement.insertBefore(historyItem, historyElement.firstChild);
+      }
+
+      // --- ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ ЧЕРЕЗ КОНСОЛЬ ---
+
+      /**
+       * Задает фиксированную зону для следующего удара.
+       * Вызовите в консоли: setFixedPrediction(номер_зоны), например setFixedPrediction(7)
+       * @param {number} zone - Номер зоны от 1 до 12.
+       */
+      window.setFixedPrediction = function (zone) {
+        if (zone < 1 || zone > 12) {
+          console.error("Ошибка: Номер зоны должен быть от 1 до 12.");
+          return;
+        }
+        gameState.fixedPrediction = zone;
+        console.log(`✅ Следующий удар будет в Зону ${zone}`);
+      };
+
+      /**
+       * Сбрасывает фиксированное предсказание и возвращает случайный выбор зоны.
+       * Вызовите в консоли: resetPrediction()
+       */
+      window.resetPrediction = function () {
+        gameState.fixedPrediction = null;
+        console.log("🔄 Режим сброшен. Следующий удар будет случайным.");
+      };
+    </script>
+  </body>
+</html>
+
+<!-- Как пользоваться функцией
+Откройте консоль разработчика в вашем браузере (обычно клавишей F12, затем выберите вкладку "Console").
+
+Чтобы задать следующую выигрышную зону, введите команду setFixedPrediction(номер_зоны) и нажмите Enter. Номер зоны должен быть от 1 до 12.
+
+Пример: Чтобы мяч полетел в центральную зону №7, введите setFixedPrediction(7).
+
+После этого сыграйте раунд как обычно. Когда вы нажмете "Get Signal", мяч полетит именно в ту зону, которую вы указали.
+
+Чтобы отключить этот режим и вернуться к случайным предсказаниям, введите в консоли команду resetPrediction() и нажмите Enter. -->
